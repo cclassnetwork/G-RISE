@@ -1,5 +1,5 @@
 
-name: Build G-rise Android APKs
+name: Build G-rise Free Features APKs
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build:
-    name: Build G-rise Free Features
+    name: Build G-rise Android APKs
     runs-on: ubuntu-latest
 
     steps:
@@ -33,9 +33,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: pip
 
-      # 4. Verify environment
+      # 4. Verify build environment
       - name: Verify build environment
         run: |
           java -version
@@ -48,28 +47,42 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y unzip zip
 
-      # 6. Check and extract source ZIP
+      # 6. Check and extract G-rise source
       - name: Extract G-rise source
         run: |
           test -f G_RISE_AUH_RISE_FREE_FEATURES.zip
           unzip -q G_RISE_AUH_RISE_FREE_FEATURES.zip
 
-      # 7. Prepare Android project
+      # 7. Verify extracted project
+      - name: Verify project structure
+        run: |
+          test -d GLOBAL_CHAT_P2P
+          test -d GLOBAL_CHAT_P2P/android
+          test -f GLOBAL_CHAT_P2P/android/prepare.sh
+          ls -la GLOBAL_CHAT_P2P
+
+      # 8. Prepare Android project
       - name: Prepare Android project
         run: |
           bash GLOBAL_CHAT_P2P/android/prepare.sh
 
-      # 8. Set up Gradle
+      # 9. Set up Gradle
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # 9. Install Python test dependencies
+      # 10. Install Python test dependencies
       - name: Install Python test dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install pytest cryptography
 
-      # 10. Run Python tests
+      # 11. Verify test directory
+      - name: Verify Python tests
+        run: |
+          test -d GLOBAL_CHAT_P2P/python/tests
+          find GLOBAL_CHAT_P2P/python/tests -type f -name 'test_*.py'
+
+      # 12. Run Python tests
       - name: Run Python tests
         working-directory: GLOBAL_CHAT_P2P
         env:
@@ -77,14 +90,14 @@ jobs:
         run: |
           python -m pytest python/tests -v
 
-      # 11. Clean previous Android build
+      # 13. Clean previous Android build
       - name: Clean previous Android build
         run: |
           rm -rf GLOBAL_CHAT_P2P/android/.gradle
           rm -rf GLOBAL_CHAT_P2P/android/build
           rm -rf GLOBAL_CHAT_P2P/android/app/build
 
-      # 12. Build Chat and Node APKs
+      # 14. Build Android APKs
       - name: Build Android APKs
         run: |
           gradle -p GLOBAL_CHAT_P2P/android clean :app:assembleDebug \
@@ -93,19 +106,23 @@ jobs:
             --rerun-tasks \
             --stacktrace
 
-      # 13. Verify Chat APK exists
+      # 15. Verify Chat APK
       - name: Verify Chat APK
         run: |
-          ls -lah GLOBAL_CHAT_P2P/android/app/build/outputs/apk/chat/debug/
-          test -n "$(find GLOBAL_CHAT_P2P/android/app/build/outputs/apk/chat/debug/ -name '*.apk' -type f)"
+          find GLOBAL_CHAT_P2P/android/app/build/outputs/apk/chat/debug \
+            -type f -name '*.apk'
+          test -n "$(find GLOBAL_CHAT_P2P/android/app/build/outputs/apk/chat/debug \
+            -type f -name '*.apk' -print -quit)"
 
-      # 14. Verify Node APK exists
+      # 16. Verify Node APK
       - name: Verify Node APK
         run: |
-          ls -lah GLOBAL_CHAT_P2P/android/app/build/outputs/apk/node/debug/
-          test -n "$(find GLOBAL_CHAT_P2P/android/app/build/outputs/apk/node/debug/ -name '*.apk' -type f)"
+          find GLOBAL_CHAT_P2P/android/app/build/outputs/apk/node/debug \
+            -type f -name '*.apk'
+          test -n "$(find GLOBAL_CHAT_P2P/android/app/build/outputs/apk/node/debug \
+            -type f -name '*.apk' -print -quit)"
 
-      # 15. Upload Chat APK
+      # 17. Upload Chat APK
       - name: Upload G-rise Chat APK
         uses: actions/upload-artifact@v4
         with:
@@ -114,7 +131,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # 16. Upload Node APK
+      # 18. Upload Node APK
       - name: Upload G-rise Node APK
         uses: actions/upload-artifact@v4
         with:
