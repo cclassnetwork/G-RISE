@@ -1,11 +1,11 @@
 
-name: Build G-rise APKs
+name: Build G-rise Free Features APKs
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'G_RISE_AUH_RISE_FREE.zip'
+      - 'G_RISE_AUH_RISE_FREE_FEATURES.zip'
       - '.github/workflows/android.yml'
 
 permissions:
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Download source code
+      # 1. Checkout source repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -50,34 +50,33 @@ jobs:
       # 6. Extract G-rise source
       - name: Extract G-rise source
         run: |
-          test -f G_RISE_AUH_RISE_FREE.zip
-          unzip -q G_RISE_AUH_RISE_FREE.zip
+          test -f G_RISE_AUH_RISE_FREE_FEATURES.zip
+          unzip -q G_RISE_AUH_RISE_FREE_FEATURES.zip
 
       # 7. Prepare Android project
       - name: Prepare Android project
         run: |
           bash GLOBAL_CHAT_P2P/android/prepare.sh
 
-      # 8. Configure Gradle
+      # 8. Set up Gradle
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
       # 9. Run Python tests
       - name: Run Python tests
-        continue-on-error: true
         run: |
           python -m unittest discover \
             -s GLOBAL_CHAT_P2P \
             -p "test*.py"
 
-      # 10. Remove previous build outputs
+      # 10. Clean old build files
       - name: Clean previous Android build
         run: |
           rm -rf GLOBAL_CHAT_P2P/android/.gradle
           rm -rf GLOBAL_CHAT_P2P/android/build
           rm -rf GLOBAL_CHAT_P2P/android/app/build
 
-      # 11. Build Chat and Node APKs
+      # 11. Build Android APKs
       - name: Build Android APKs
         run: |
           gradle -p GLOBAL_CHAT_P2P/android clean :app:assembleDebug \
