@@ -1,5 +1,5 @@
 
-name: Build G-rise Free Features APKs
+name: Build G-rise Android APKs
 
 on:
   workflow_dispatch:
@@ -13,11 +13,11 @@ permissions:
 
 jobs:
   build:
-    name: Build G-rise Android APKs
+    name: Build G-rise Free Features
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout source repository
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -33,8 +33,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip
 
-      # 4. Verify Java and Python
+      # 4. Verify environment
       - name: Verify build environment
         run: |
           java -version
@@ -42,12 +43,12 @@ jobs:
           python3.12 --version
 
       # 5. Install system dependencies
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y unzip zip
 
-      # 6. Extract G-rise source
+      # 6. Check and extract source ZIP
       - name: Extract G-rise source
         run: |
           test -f G_RISE_AUH_RISE_FREE_FEATURES.zip
@@ -62,21 +63,28 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # 9. Run Python tests
-      - name: Run Python tests
+      # 9. Install Python test dependencies
+      - name: Install Python test dependencies
         run: |
-          python -m unittest discover \
-            -s GLOBAL_CHAT_P2P \
-            -p "test*.py"
+          python -m pip install --upgrade pip
+          python -m pip install pytest cryptography
 
-      # 10. Clean old build files
+      # 10. Run Python tests
+      - name: Run Python tests
+        working-directory: GLOBAL_CHAT_P2P
+        env:
+          PYTHONPATH: python
+        run: |
+          python -m pytest python/tests -v
+
+      # 11. Clean previous Android build
       - name: Clean previous Android build
         run: |
           rm -rf GLOBAL_CHAT_P2P/android/.gradle
           rm -rf GLOBAL_CHAT_P2P/android/build
           rm -rf GLOBAL_CHAT_P2P/android/app/build
 
-      # 11. Build Android APKs
+      # 12. Build Chat and Node APKs
       - name: Build Android APKs
         run: |
           gradle -p GLOBAL_CHAT_P2P/android clean :app:assembleDebug \
@@ -85,7 +93,19 @@ jobs:
             --rerun-tasks \
             --stacktrace
 
-      # 12. Upload Chat APK
+      # 13. Verify Chat APK exists
+      - name: Verify Chat APK
+        run: |
+          ls -lah GLOBAL_CHAT_P2P/android/app/build/outputs/apk/chat/debug/
+          test -n "$(find GLOBAL_CHAT_P2P/android/app/build/outputs/apk/chat/debug/ -name '*.apk' -type f)"
+
+      # 14. Verify Node APK exists
+      - name: Verify Node APK
+        run: |
+          ls -lah GLOBAL_CHAT_P2P/android/app/build/outputs/apk/node/debug/
+          test -n "$(find GLOBAL_CHAT_P2P/android/app/build/outputs/apk/node/debug/ -name '*.apk' -type f)"
+
+      # 15. Upload Chat APK
       - name: Upload G-rise Chat APK
         uses: actions/upload-artifact@v4
         with:
@@ -94,7 +114,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # 13. Upload Node APK
+      # 16. Upload Node APK
       - name: Upload G-rise Node APK
         uses: actions/upload-artifact@v4
         with:
