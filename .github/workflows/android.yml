@@ -1,0 +1,80 @@
+
+name: G-rise Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "G_RISE_AUH_RISE_GITHUB_READY.zip"
+      - ".github/workflows/android.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    name: Test and Build G-rise APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Unpack G-rise project
+        run: |
+          unzip -q G_RISE_AUH_RISE_GITHUB_READY.zip
+          ls -la
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run Python engine tests
+        continue-on-error: true
+        run: |
+          python -m pip install --quiet "cryptography==42.0.8" pytest
+          cd GLOBAL_CHAT_P2P/python
+          python -m pytest -q
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Prepare Android engine
+        run: |
+          bash GLOBAL_CHAT_P2P/android/prepare.sh
+
+      - name: Build both G-rise APK variants
+        run: |
+          gradle -p GLOBAL_CHAT_P2P/android \
+            :app:assembleDebug \
+            --no-daemon \
+            --stacktrace
+
+      - name: Show generated APK files
+        run: |
+          find GLOBAL_CHAT_P2P/android/app/build/outputs/apk \
+            -type f -name "*.apk" -print
+
+      - name: Upload G-rise Chat APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: g-rise-chat-apk
+          path: GLOBAL_CHAT_P2P/android/app/build/outputs/apk/chat/debug/*.apk
+          if-no-files-found: error
+
+      - name: Upload G-rise Node APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: g-rise-node-apk
+          path: GLOBAL_CHAT_P2P/android/app/build/outputs/apk/node/debug/*.apk
+          if-no-files-found: error
