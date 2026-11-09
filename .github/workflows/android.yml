@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - "G_RISE_AUH_RISE_GITHUB_READY.zip"
+      - "G_RISE_AUH_RISE_TRIAL_PREVIEW.zip"
       - ".github/workflows/android.yml"
 
 permissions:
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   apk:
-    name: Test and Build G-rise APKs
+    name: Build G-rise Android APKs
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -23,24 +23,28 @@ jobs:
 
       - name: Unpack G-rise project
         run: |
-          unzip -q G_RISE_AUH_RISE_GITHUB_READY.zip
+          unzip -q G_RISE_AUH_RISE_TRIAL_PREVIEW.zip
           ls -la
 
-      - name: Set up Java
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Python
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+      - name: Install Python test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "cryptography==42.0.8" pytest
+
       - name: Run Python engine tests
         continue-on-error: true
         run: |
-          python -m pip install --quiet "cryptography==42.0.8" pytest
           cd GLOBAL_CHAT_P2P/python
           python -m pytest -q
 
@@ -53,14 +57,14 @@ jobs:
         run: |
           bash GLOBAL_CHAT_P2P/android/prepare.sh
 
-      - name: Build both G-rise APK variants
+      - name: Build both APK variants
         run: |
           gradle -p GLOBAL_CHAT_P2P/android \
             :app:assembleDebug \
             --no-daemon \
             --stacktrace
 
-      - name: Show generated APK files
+      - name: Display generated APKs
         run: |
           find GLOBAL_CHAT_P2P/android/app/build/outputs/apk \
             -type f -name "*.apk" -print
