@@ -1,11 +1,12 @@
-
-name: G-rise Android APK
+# Builds the G-rise Android app (the whole peer-to-peer engine runs inside the APK).
+# Run it from the repository's "Actions" tab -> "G-rise APK" -> "Run workflow", then download "g-rise-chat-apk".
+name: G-rise APK
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - "G_RISE_AUH_RISE_TRIAL_PREVIEW.zip"
+      - "G_RISE_AUH_RISE_FREE.zip"
       - ".github/workflows/android.yml"
 
 permissions:
@@ -13,71 +14,40 @@ permissions:
 
 jobs:
   apk:
-    name: Build G-rise Android APKs
+    name: Test and build both debug APK variants
     runs-on: ubuntu-latest
     timeout-minutes: 45
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Unpack G-rise project
-        run: |
-          unzip -q G_RISE_AUH_RISE_TRIAL_PREVIEW.zip
-          ls -la
-
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - name: Unpack the uploaded G_RISE_AUH_RISE_FREE.zip
+        run: unzip -q G_RISE_AUH_RISE_FREE.zip
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5          # Chaquopy needs a matching Python (3.12) on the build machine
         with:
           python-version: "3.12"
-
-      - name: Install Python test dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install "cryptography==42.0.8" pytest
-
-      - name: Run Python engine tests
+      - name: Run the engine tests (informational: the APK is built even if a timing-sensitive network test fails)
         continue-on-error: true
         run: |
-          cd GLOBAL_CHAT_P2P/python
-          python -m pytest -q
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+          python -m pip install --quiet "cryptography==42.0.8" pytest
+          cd GLOBAL_CHAT_P2P/python && python -m pytest -q
+      - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-
-      - name: Prepare Android engine
-        run: |
-          bash GLOBAL_CHAT_P2P/android/prepare.sh
-
-      - name: Build both APK variants
-        run: |
-          gradle -p GLOBAL_CHAT_P2P/android \
-            :app:assembleDebug \
-            --no-daemon \
-            --stacktrace
-
-      - name: Display generated APKs
-        run: |
-          find GLOBAL_CHAT_P2P/android/app/build/outputs/apk \
-            -type f -name "*.apk" -print
-
-      - name: Upload G-rise Chat APK
-        uses: actions/upload-artifact@v4
+      - name: Copy the engine into the Android project
+        run: bash GLOBAL_CHAT_P2P/android/prepare.sh
+      - name: Build
+        run: gradle -p GLOBAL_CHAT_P2P/android assembleDebug --no-daemon --stacktrace
+      - name: Show generated APKs
+        run: find GLOBAL_CHAT_P2P/android/app/build/outputs/apk -type f -name "*.apk" -print
+      - uses: actions/upload-artifact@v4
         with:
           name: g-rise-chat-apk
           path: GLOBAL_CHAT_P2P/android/app/build/outputs/apk/chat/debug/*.apk
           if-no-files-found: error
-
-      - name: Upload G-rise Node APK
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: g-rise-node-apk
           path: GLOBAL_CHAT_P2P/android/app/build/outputs/apk/node/debug/*.apk
